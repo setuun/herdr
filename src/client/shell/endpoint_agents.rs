@@ -91,7 +91,18 @@ pub(super) fn render_expanded(
                 put_text(buffer, rect.x, rect.y, rect.width, &format!(" {label}"), style);
             }
             AgentPanelItem::Agent(row) => {
-                super::agent_sidebar::render_agent_row(buffer, rect, &row.agent, config);
+                // Indent under machine headings, like workspaces in the machine list.
+                let content = if config.agents.group_by_machine {
+                    Rect::new(
+                        rect.x.saturating_add(2),
+                        rect.y,
+                        rect.width.saturating_sub(2),
+                        rect.height,
+                    )
+                } else {
+                    rect
+                };
+                super::agent_sidebar::render_agent_row(buffer, content, &row.agent, config);
                 if row.stale {
                     buffer.set_style(
                         rect,
