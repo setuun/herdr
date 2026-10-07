@@ -340,7 +340,13 @@ pub(super) fn render_agent_row(
             .add_modifier(Modifier::BOLD)
     };
     let status_style = Style::default().fg(status_color(row.status, palette));
-    let secondary = Style::default().fg(palette.overlay0);
+    // With machine colors, the focused agent's secondary text (agent name) is highlighted
+    // like the focused workspace's branch in the machine list.
+    let secondary = Style::default().fg(if row.focused && config.agents.machine_color {
+        palette.mauve
+    } else {
+        palette.overlay0
+    });
     let icon = (
         status_icon(row.status, config.status_indicators),
         Style::default().fg(status_color(row.status, palette)),
