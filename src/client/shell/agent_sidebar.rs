@@ -334,6 +334,9 @@ pub(super) fn render_agent_row(
         Style::default()
             .fg(palette.text)
             .add_modifier(Modifier::BOLD)
+    } else if config.agents.machine_color {
+        // With machine headings carrying the emphasis, only the focused agent is bold.
+        Style::default().fg(palette.subtext0)
     } else {
         Style::default()
             .fg(palette.subtext0)
