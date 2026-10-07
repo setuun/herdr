@@ -430,6 +430,10 @@ pub struct AgentsSidebarConfig {
     #[serde(default, deserialize_with = "deserialize_rows_by_agent")]
     pub rows_by_agent: BTreeMap<String, AgentSidebarRows>,
     pub row_gap: u16,
+    /// Multi-machine sidebar: group agents under one heading per machine (styled like
+    /// `ui.sidebar.spaces.machine_heading`).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub group_by_machine: bool,
 }
 
 impl AgentsSidebarConfig {
@@ -454,6 +458,7 @@ impl Default for AgentsSidebarConfig {
             ],
             rows_by_agent: BTreeMap::new(),
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
+            group_by_machine: false,
         }
     }
 }
@@ -472,6 +477,10 @@ pub struct SpacesSidebarConfig {
         deserialize_with = "deserialize_machine_heading"
     )]
     pub machine_heading: Option<SpaceSidebarToken>,
+    /// Multi-machine sidebar: give workspace names the foreground color of their machine's
+    /// heading (unless the workspace token sets its own `fg`).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub workspace_machine_color: bool,
 }
 
 impl SpacesSidebarConfig {
@@ -505,6 +514,7 @@ impl Default for SpacesSidebarConfig {
             ],
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
             machine_heading: None,
+            workspace_machine_color: false,
         }
     }
 }
@@ -766,6 +776,7 @@ rows = [[{ token = "$status", rules = [{ contains = "error", bold = true }] }]]
             r##"
 rows = [["state_icon", "workspace", { token = "machine", dim = true }]]
 machine_heading = { token = "machine", rules = [{ equals = "dev", fg = "#61afef" }, { equals = "Local", bold = false }] }
+workspace_machine_color = true
 "##,
         )
         .unwrap();
@@ -784,6 +795,11 @@ machine_heading = { token = "machine", rules = [{ equals = "dev", fg = "#61afef"
             Some(SidebarTokenStyle::default())
         );
         assert_eq!(SpacesSidebarConfig::default().machine_heading_style("dev"), None);
+        assert!(config.workspace_machine_color);
+        assert!(!SpacesSidebarConfig::default().workspace_machine_color);
+        let agents: AgentsSidebarConfig = toml::from_str("group_by_machine = true").unwrap();
+        assert!(agents.group_by_machine);
+        assert!(!AgentsSidebarConfig::default().group_by_machine);
 
         let encoded = toml::to_string(&config).unwrap();
         let decoded: SpacesSidebarConfig = toml::from_str(&encoded).unwrap();

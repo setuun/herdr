@@ -641,7 +641,7 @@ pub(in crate::client::shell) fn workspace_rows(
         &workspace.label
     };
     let token_values = workspace.tokens.iter().cloned().collect::<HashMap<_, _>>();
-    crate::ui::sidebar_space_rows(
+    let mut rows = crate::ui::sidebar_space_rows(
         config,
         crate::ui::SpaceTokenContext {
             machine,
@@ -652,7 +652,21 @@ pub(in crate::client::shell) fn workspace_rows(
             tokens: &token_values,
             suppress_git_details: indented,
         },
-    )
+    );
+    if let Some(machine_fg) = machine
+        .filter(|_| config.workspace_machine_color)
+        .and_then(|machine| config.machine_heading_style(machine))
+        .and_then(|style| style.fg)
+    {
+        for token in rows.iter_mut().flatten() {
+            if matches!(token.kind, crate::ui::ResolvedTokenKind::Workspace(_))
+                && token.style.fg.is_none()
+            {
+                token.style.fg = Some(machine_fg);
+            }
+        }
+    }
+    rows
 }
 
 pub(in crate::client::shell) fn render_workspace_rows(
