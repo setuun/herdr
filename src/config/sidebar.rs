@@ -434,6 +434,10 @@ pub struct AgentsSidebarConfig {
     /// `ui.sidebar.spaces.machine_heading`).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub group_by_machine: bool,
+    /// Multi-machine sidebar: give agent row text the foreground color of the machine heading
+    /// (unless a token sets its own `fg`; state icon and state text keep their status colors).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub machine_color: bool,
 }
 
 impl AgentsSidebarConfig {
@@ -459,6 +463,7 @@ impl Default for AgentsSidebarConfig {
             rows_by_agent: BTreeMap::new(),
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
             group_by_machine: false,
+            machine_color: false,
         }
     }
 }
@@ -797,8 +802,10 @@ workspace_machine_color = true
         assert_eq!(SpacesSidebarConfig::default().machine_heading_style("dev"), None);
         assert!(config.workspace_machine_color);
         assert!(!SpacesSidebarConfig::default().workspace_machine_color);
-        let agents: AgentsSidebarConfig = toml::from_str("group_by_machine = true").unwrap();
+        let agents: AgentsSidebarConfig =
+            toml::from_str("group_by_machine = true\nmachine_color = true").unwrap();
         assert!(agents.group_by_machine);
+        assert!(agents.machine_color);
         assert!(!AgentsSidebarConfig::default().group_by_machine);
 
         let encoded = toml::to_string(&config).unwrap();

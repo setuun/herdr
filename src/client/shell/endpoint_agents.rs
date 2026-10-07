@@ -201,6 +201,29 @@ fn agent_panel_items(
     items
 }
 
+fn apply_machine_color(
+    agent: &mut super::agent_sidebar::AgentRow,
+    config: &ClientShellConfig,
+    machine: &str,
+) {
+    let Some(fg) = config
+        .spaces
+        .machine_heading_style(machine)
+        .and_then(|style| style.fg)
+    else {
+        return;
+    };
+    for token in agent.rows.iter_mut().flatten() {
+        let status = matches!(
+            token.kind,
+            crate::ui::ResolvedTokenKind::StateIcon | crate::ui::ResolvedTokenKind::StateText(_)
+        );
+        if !status && token.style.fg.is_none() {
+            token.style.fg = Some(fg);
+        }
+    }
+}
+
 struct EndpointAgentRow {
     endpoint_id: ClientEndpointId,
     machine_label: String,
@@ -227,6 +250,12 @@ fn agent_rows(
                             config,
                             Some(&endpoint.label),
                         )
+                    })
+                    .map(|mut agent| {
+                        if config.agents.machine_color {
+                            apply_machine_color(&mut agent, config, &endpoint.label);
+                        }
+                        agent
                     })
                     .map(|agent| ((endpoint.endpoint_id.clone(), agent.pane_id.clone()), agent))
                     .collect::<Vec<_>>()
