@@ -44,6 +44,20 @@ pub fn play(sound: Sound, config: &crate::config::SoundConfig) {
     }
 
     let custom_path = config.path_for(sound);
+    if let Some((program, args)) = config.player.split_first() {
+        let program = program.clone();
+        let args = args.to_vec();
+        std::thread::spawn(move || {
+            let data = match sound {
+                Sound::Done => SOUND_DONE,
+                Sound::Request => SOUND_REQUEST,
+            };
+            if let Err(err) = play_with_command(&program, &args, custom_path.as_deref(), data) {
+                warn!(sound = ?sound, program = %program, err = %err, "custom sound player failed");
+            }
+        });
+        return;
+    }
     std::thread::spawn(move || {
         if let Some(path) = custom_path {
             match play_file(&path) {
@@ -63,6 +77,37 @@ pub fn play(sound: Sound, config: &crate::config::SoundConfig) {
             warn!(sound = ?sound, err = %err, "sound playback failed");
         }
     });
+}
+
+/// Runs `ui.sound.player` with the custom sound file, or with the built-in sound written to
+/// a temporary file.
+fn play_with_command(
+    program: &str,
+    args: &[String],
+    custom_path: Option<&Path>,
+    data: &[u8],
+) -> Result<(), String> {
+    let run = |path: &Path| -> Result<(), String> {
+        let output = Command::new(program)
+            .args(args)
+            .arg(path)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .map_err(|err| err.to_string())?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(playback_error(&output))
+        }
+    };
+    if let Some(path) = custom_path.filter(|path| path.is_file()) {
+        return run(path);
+    }
+    let tmp = temp_sound_path();
+    std::fs::write(&tmp, data).map_err(|err| err.to_string())?;
+    let result = run(&tmp);
+    let _ = std::fs::remove_file(&tmp);
+    result
 }
 
 fn sound_playback_disabled_by_env() -> bool {
@@ -365,6 +410,22 @@ fn player_error(player: AudioPlayer, output: &Output) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_player_receives_builtin_sound_file() {
+        let out = std::env::temp_dir().join(format!(
+            "herdr-sound-player-test-{}.mp3",
+            std::process::id()
+        ));
+        let script = format!("cat \"$1\" > '{}'", out.display());
+        let args = vec!["-c".to_string(), script, "sh".to_string()];
+        super::play_with_command("sh", &args, None, b"mp3-bytes").unwrap();
+        assert_eq!(std::fs::read(&out).unwrap(), b"mp3-bytes");
+        let _ = std::fs::remove_file(&out);
+
+        let err = super::play_with_command("false", &[], None, b"x").unwrap_err();
+        assert!(err.contains("player exited"));
+    }
 
     #[test]
     fn temp_sound_paths_are_unique() {
