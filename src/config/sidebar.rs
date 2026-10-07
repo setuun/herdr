@@ -127,6 +127,7 @@ pub enum AgentSidebarToken {
 pub enum SpaceSidebarToken {
     StateIcon,
     StateText,
+    Machine,
     Workspace,
     Branch,
     GitStatus,
@@ -288,6 +289,7 @@ fn space_token_name(token: &SpaceSidebarToken) -> String {
     match token {
         SpaceSidebarToken::StateIcon => "state_icon".into(),
         SpaceSidebarToken::StateText => "state_text".into(),
+        SpaceSidebarToken::Machine => "machine".into(),
         SpaceSidebarToken::Workspace => "workspace".into(),
         SpaceSidebarToken::Branch => "branch".into(),
         SpaceSidebarToken::GitStatus => "git_status".into(),
@@ -384,6 +386,7 @@ impl<'de> Deserialize<'de> for SpaceSidebarToken {
             &[
                 ("state_icon", Self::StateIcon),
                 ("state_text", Self::StateText),
+                ("machine", Self::Machine),
                 ("workspace", Self::Workspace),
                 ("branch", Self::Branch),
                 ("git_status", Self::GitStatus),
@@ -461,6 +464,36 @@ pub struct SpacesSidebarConfig {
     #[serde(deserialize_with = "deserialize_sidebar_rows")]
     pub rows: SpaceSidebarRows,
     pub row_gap: u16,
+    /// Style for machine group headings, e.g.
+    /// `machine_heading = { token = "machine", rules = [{ equals = "dev", fg = "#61afef" }] }`.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_machine_heading"
+    )]
+    pub machine_heading: Option<SpaceSidebarToken>,
+}
+
+impl SpacesSidebarConfig {
+    /// Style patch for a machine group heading; `None` means "use the theme".
+    pub(crate) fn machine_heading_style(&self, machine: &str) -> Option<SidebarTokenStyle> {
+        self.machine_heading
+            .as_ref()
+            .and_then(|token| token.style_for_value(machine))
+    }
+}
+
+fn deserialize_machine_heading<'de, D>(deserializer: D) -> Result<Option<SpaceSidebarToken>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let token = SpaceSidebarToken::deserialize(deserializer)?;
+    if token.parts().0 != &SpaceSidebarToken::Machine {
+        return Err(serde::de::Error::custom(
+            "machine_heading must use the `machine` token",
+        ));
+    }
+    Ok(Some(token))
 }
 
 impl Default for SpacesSidebarConfig {
@@ -471,6 +504,7 @@ impl Default for SpacesSidebarConfig {
                 vec![SpaceSidebarToken::Branch, SpaceSidebarToken::GitStatus],
             ],
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
+            machine_heading: None,
         }
     }
 }
@@ -725,5 +759,43 @@ rows = [[{ token = "$status", rules = [{ contains = "error", bold = true }] }]]
                 "accepted key {key:?}"
             );
         }
+    }
+    #[test]
+    fn spaces_accept_machine_token_and_machine_heading_rules() {
+        let config: SpacesSidebarConfig = toml::from_str(
+            r##"
+rows = [["state_icon", "workspace", { token = "machine", dim = true }]]
+machine_heading = { token = "machine", rules = [{ equals = "dev", fg = "#61afef" }, { equals = "Local", bold = false }] }
+"##,
+        )
+        .unwrap();
+        assert!(matches!(
+            config.rows[0][2].parts().0,
+            SpaceSidebarToken::Machine
+        ));
+        let dev = config.machine_heading_style("dev").unwrap();
+        assert_eq!(
+            dev.fg.unwrap().ratatui(),
+            ratatui::style::Color::Rgb(0x61, 0xaf, 0xef)
+        );
+        assert_eq!(config.machine_heading_style("Local").unwrap().bold, Some(false));
+        assert_eq!(
+            config.machine_heading_style("ai"),
+            Some(SidebarTokenStyle::default())
+        );
+        assert_eq!(SpacesSidebarConfig::default().machine_heading_style("dev"), None);
+
+        let encoded = toml::to_string(&config).unwrap();
+        let decoded: SpacesSidebarConfig = toml::from_str(&encoded).unwrap();
+        assert_eq!(decoded, config);
+    }
+
+    #[test]
+    fn machine_heading_rejects_other_tokens() {
+        let err = toml::from_str::<SpacesSidebarConfig>(
+            "machine_heading = { token = 'workspace', fg = '#fff' }",
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("machine_heading must use the `machine` token"));
     }
 }
