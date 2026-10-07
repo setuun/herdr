@@ -214,11 +214,14 @@ fn apply_machine_color(
         return;
     };
     for token in agent.rows.iter_mut().flatten() {
-        let status = matches!(
+        // Status keeps its colors; the agent name stays secondary like a workspace's branch.
+        let keep = matches!(
             token.kind,
-            crate::ui::ResolvedTokenKind::StateIcon | crate::ui::ResolvedTokenKind::StateText(_)
+            crate::ui::ResolvedTokenKind::StateIcon
+                | crate::ui::ResolvedTokenKind::StateText(_)
+                | crate::ui::ResolvedTokenKind::Agent(_)
         );
-        if !status && token.style.fg.is_none() {
+        if !keep && token.style.fg.is_none() {
             token.style.fg = Some(fg);
         }
     }

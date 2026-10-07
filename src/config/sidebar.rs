@@ -435,7 +435,8 @@ pub struct AgentsSidebarConfig {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub group_by_machine: bool,
     /// Multi-machine sidebar: give agent row text the foreground color of the machine heading
-    /// (unless a token sets its own `fg`; state icon and state text keep their status colors).
+    /// (unless a token sets its own `fg`; state icon and state text keep their status colors,
+    /// the agent name stays secondary).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub machine_color: bool,
 }
