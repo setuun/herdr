@@ -122,6 +122,7 @@ pub(crate) fn agent_rows(
 }
 
 pub(crate) struct SpaceTokenContext<'a> {
+    pub(crate) machine: Option<&'a str>,
     pub(crate) workspace: &'a str,
     pub(crate) branch: Option<&'a str>,
     pub(crate) state_text: &'a str,
@@ -147,6 +148,9 @@ pub(crate) fn space_rows(
                         SpaceSidebarToken::StateText => {
                             Some(ResolvedTokenKind::StateText(context.state_text.to_string()))
                         }
+                        SpaceSidebarToken::Machine => context
+                            .machine
+                            .map(|value| ResolvedTokenKind::Machine(value.to_string())),
                         SpaceSidebarToken::Workspace => {
                             Some(ResolvedTokenKind::Workspace(context.workspace.to_string()))
                         }
@@ -326,6 +330,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, dim = true }] }]]
             let spaces = space_rows(
                 &config.spaces,
                 SpaceTokenContext {
+                    machine: None,
                     workspace: "repo",
                     branch: None,
                     state_text: "working",
@@ -375,6 +380,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
             let rows = space_rows(
                 &config.spaces,
                 SpaceTokenContext {
+                    machine: None,
                     workspace: "repo",
                     branch: None,
                     state_text: "working",
@@ -544,6 +550,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
             space_rows(
                 &config,
                 SpaceTokenContext {
+                    machine: None,
                     workspace: "feature",
                     branch: Some("worktree/feature"),
                     state_text: "idle",
@@ -560,6 +567,37 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
     }
 
     #[test]
+    fn space_machine_token_resolves_only_with_a_machine() {
+        let config = SpacesSidebarConfig {
+            rows: vec![vec![SpaceSidebarToken::Workspace, SpaceSidebarToken::Machine]],
+            ..Default::default()
+        };
+        let tokens = std::collections::HashMap::new();
+        let context = |machine| SpaceTokenContext {
+            machine,
+            workspace: "repo",
+            branch: None,
+            state_text: "idle",
+            ahead_behind: None,
+            tokens: &tokens,
+            suppress_git_details: false,
+        };
+        assert_eq!(
+            space_rows(&config, context(Some("dev"))),
+            vec![vec![
+                ResolvedToken::unstyled(ResolvedTokenKind::Workspace("repo".into())),
+                ResolvedToken::unstyled(ResolvedTokenKind::Machine("dev".into())),
+            ]]
+        );
+        assert_eq!(
+            space_rows(&config, context(None)),
+            vec![vec![ResolvedToken::unstyled(ResolvedTokenKind::Workspace(
+                "repo".into()
+            ))]]
+        );
+    }
+
+    #[test]
     fn workspace_custom_token_can_replace_git_specific_details() {
         let tokens = std::collections::HashMap::from([("jj_status".into(), "2 changes".into())]);
         let config = SpacesSidebarConfig {
@@ -571,6 +609,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
             space_rows(
                 &config,
                 SpaceTokenContext {
+                    machine: None,
                     workspace: "repo",
                     branch: None,
                     state_text: "idle",
