@@ -248,6 +248,7 @@ pub(crate) fn render_sidebar(
                         displayed_workspace_status(snapshot, workspace, state.collapsed_groups),
                         entry.indented,
                         &config.spaces,
+                        None,
                     )
                     .len()
                     .max(1)
@@ -304,7 +305,7 @@ pub(crate) fn render_sidebar(
             continue;
         };
         let status = displayed_workspace_status(snapshot, workspace, state.collapsed_groups);
-        let rows = workspace_rows(workspace, status, entry.indented, &config.spaces);
+        let rows = workspace_rows(workspace, status, entry.indented, &config.spaces, None);
         let row_height = (rows.len().max(1).min(u16::MAX as usize) as u16).min(body.height);
         if y.saturating_add(row_height) > body.bottom() {
             break;
@@ -628,6 +629,7 @@ pub(in crate::client::shell) fn workspace_rows(
     status: crate::api::schema::AgentStatus,
     indented: bool,
     config: &SpacesSidebarConfig,
+    machine: Option<&str>,
 ) -> Vec<Vec<crate::ui::ResolvedToken>> {
     let label = if indented && !workspace.custom_label {
         workspace
@@ -642,6 +644,7 @@ pub(in crate::client::shell) fn workspace_rows(
     crate::ui::sidebar_space_rows(
         config,
         crate::ui::SpaceTokenContext {
+            machine,
             workspace: label,
             branch: workspace.branch.as_deref(),
             state_text: status_text(status),

@@ -84,11 +84,15 @@ pub(super) fn render_collapsed(
                 rect.y,
                 rect.width.saturating_sub(1),
                 &format!("{marker}{label}"),
-                Style::default().fg(if endpoint.status == ClientEndpointStatus::Online {
-                    palette.text
-                } else {
-                    palette.overlay0
-                }),
+                machine_heading_style(
+                    config,
+                    endpoint,
+                    Style::default().fg(if endpoint.status == ClientEndpointStatus::Online {
+                        palette.text
+                    } else {
+                        palette.overlay0
+                    }),
+                ),
             );
             let mut status_badge = Rect::default();
             if !endpoint.endpoint_id.is_local() {
@@ -324,6 +328,7 @@ pub(super) fn render_expanded(
                                 ),
                                 entry.indented,
                                 &config.spaces,
+                                Some(endpoint.label.as_str()),
                             )
                             .len()
                             .max(1)
@@ -415,7 +420,7 @@ pub(super) fn render_expanded(
                     endpoint,
                     collapsed && &endpoint.endpoint_id == state.active_endpoint_id,
                     state.machine_diagnostics,
-                    palette,
+                    config,
                 );
                 hits.machines.push(MachineHit {
                     rect,
@@ -452,6 +457,7 @@ pub(super) fn render_expanded(
                     status,
                     entry.indented,
                     &config.spaces,
+                    Some(endpoint.label.as_str()),
                 );
                 let height = (tokens.len().max(1).min(u16::MAX as usize) as u16).min(body.height);
                 if y.saturating_add(height) > body.bottom() {
@@ -587,6 +593,22 @@ fn active_endpoint_label<'a>(state: &'a ShellRenderState<'_>) -> &'a str {
         .map_or("Local", |endpoint| endpoint.label.as_str())
 }
 
+/// Applies `ui.sidebar.spaces.machine_heading` to an online machine's heading. Offline and
+/// disabled machines keep the theme style so their state stays readable.
+fn machine_heading_style(
+    config: &ClientShellConfig,
+    endpoint: &ClientShellEndpoint,
+    base: Style,
+) -> Style {
+    if endpoint.status != ClientEndpointStatus::Online {
+        return base;
+    }
+    config
+        .spaces
+        .machine_heading_style(&endpoint.label)
+        .map_or(base, |patch| crate::ui::apply_sidebar_token_style(base, patch))
+}
+
 fn render_endpoint_row(
     buffer: &mut Buffer,
     rect: Rect,
@@ -594,8 +616,9 @@ fn render_endpoint_row(
     endpoint: &ClientShellEndpoint,
     highlighted: bool,
     auth: &super::machine_diagnostics::MachineDiagnostics,
-    palette: &Palette,
+    config: &ClientShellConfig,
 ) -> Rect {
+    let palette = &config.palette;
     if highlighted {
         buffer.set_style(rect, Style::default().bg(palette.active_row_bg));
     }
@@ -623,15 +646,19 @@ fn render_endpoint_row(
         rect.y,
         rect.width.saturating_sub(signal_width.saturating_add(1)),
         &format!(" {marker} {}", endpoint.label),
-        Style::default()
-            .fg(
-                if matches!(endpoint.status, ClientEndpointStatus::Disabled) {
-                    palette.overlay0
-                } else {
-                    palette.text
-                },
-            )
-            .add_modifier(Modifier::BOLD),
+        machine_heading_style(
+            config,
+            endpoint,
+            Style::default()
+                .fg(
+                    if matches!(endpoint.status, ClientEndpointStatus::Disabled) {
+                        palette.overlay0
+                    } else {
+                        palette.text
+                    },
+                )
+                .add_modifier(Modifier::BOLD),
+        ),
     );
     put_right_text(
         buffer,
