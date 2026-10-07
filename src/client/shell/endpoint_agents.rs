@@ -61,28 +61,48 @@ pub(super) fn render_expanded(
     ) {
         return;
     }
-    let rows = agent_rows(endpoints, active_endpoint_id, config);
+    let items = agent_panel_items(endpoints, active_endpoint_id, config);
     super::agent_sidebar::render_agent_list(
         buffer,
         area,
-        &rows,
+        &items,
         agent_view_label.map(|_| " no matching agents"),
         config,
         agent_scroll,
         hits,
-        |row| row.agent.rows.len(),
-        |buffer, rect, row, hits| {
-            super::agent_sidebar::render_agent_row(buffer, rect, &row.agent, config);
-            if row.stale {
-                buffer.set_style(
-                    rect,
-                    Style::default()
-                        .fg(config.palette.overlay0)
-                        .add_modifier(Modifier::DIM),
-                );
+        AgentPanelItem::lines,
+        |buffer, rect, item, hits| match item {
+            AgentPanelItem::Heading { label, stale } => {
+                let base = Style::default()
+                    .fg(if *stale {
+                        config.palette.overlay0
+                    } else {
+                        config.palette.text
+                    })
+                    .add_modifier(Modifier::BOLD);
+                let style = if *stale {
+                    base
+                } else {
+                    config
+                        .spaces
+                        .machine_heading_style(label)
+                        .map_or(base, |patch| crate::ui::apply_sidebar_token_style(base, patch))
+                };
+                put_text(buffer, rect.x, rect.y, rect.width, &format!(" {label}"), style);
             }
-            hits.endpoint_agents
-                .push((rect, row.endpoint_id.clone(), row.agent.pane_id.clone()));
+            AgentPanelItem::Agent(row) => {
+                super::agent_sidebar::render_agent_row(buffer, rect, &row.agent, config);
+                if row.stale {
+                    buffer.set_style(
+                        rect,
+                        Style::default()
+                            .fg(config.palette.overlay0)
+                            .add_modifier(Modifier::DIM),
+                    );
+                }
+                hits.endpoint_agents
+                    .push((rect, row.endpoint_id.clone(), row.agent.pane_id.clone()));
+            }
         },
     );
 }
@@ -97,16 +117,16 @@ impl ClientShellState {
         if body_height == 0 {
             return;
         }
-        let rows = agent_rows(&self.endpoints, &self.active_endpoint_id, &self.config);
-        let Some(target) = rows
-            .iter()
-            .position(|row| &row.endpoint_id == endpoint_id && row.agent.pane_id == pane_id)
-        else {
+        let rows = agent_panel_items(&self.endpoints, &self.active_endpoint_id, &self.config);
+        let Some(target) = rows.iter().position(|item| {
+            matches!(item, AgentPanelItem::Agent(row)
+                if &row.endpoint_id == endpoint_id && row.agent.pane_id == pane_id)
+        }) else {
             return;
         };
         let heights = rows
             .iter()
-            .map(|row| row.agent.rows.len().max(1).min(u16::MAX as usize) as u16)
+            .map(|item| item.lines().max(1).min(u16::MAX as usize) as u16)
             .collect::<Vec<_>>();
         let mut gaps = vec![self.config.agents.row_gap; rows.len()];
         if let Some(last) = gaps.last_mut() {
@@ -120,6 +140,54 @@ impl ClientShellState {
             target,
         );
     }
+}
+
+enum AgentPanelItem {
+    /// Machine heading (only with `ui.sidebar.agents.group_by_machine`).
+    Heading { label: String, stale: bool },
+    Agent(EndpointAgentRow),
+}
+
+impl AgentPanelItem {
+    fn lines(&self) -> usize {
+        match self {
+            Self::Heading { .. } => 1,
+            Self::Agent(row) => row.agent.rows.len(),
+        }
+    }
+}
+
+/// Agent rows for the expanded panel. Grouped by machine: rows keep their order within a
+/// machine, machines follow the sidebar order, and each machine gets a heading row.
+fn agent_panel_items(
+    endpoints: &[ClientShellEndpoint],
+    active_endpoint_id: &ClientEndpointId,
+    config: &ClientShellConfig,
+) -> Vec<AgentPanelItem> {
+    let mut rows = agent_rows(endpoints, active_endpoint_id, config);
+    if !config.agents.group_by_machine {
+        return rows.into_iter().map(AgentPanelItem::Agent).collect();
+    }
+    let position = |id: &ClientEndpointId| {
+        endpoints
+            .iter()
+            .position(|endpoint| &endpoint.endpoint_id == id)
+            .unwrap_or(usize::MAX)
+    };
+    rows.sort_by_cached_key(|row| position(&row.endpoint_id));
+    let mut items = Vec::with_capacity(rows.len() + endpoints.len());
+    let mut current: Option<ClientEndpointId> = None;
+    for row in rows {
+        if current.as_ref() != Some(&row.endpoint_id) {
+            current = Some(row.endpoint_id.clone());
+            items.push(AgentPanelItem::Heading {
+                label: row.machine_label.clone(),
+                stale: row.stale,
+            });
+        }
+        items.push(AgentPanelItem::Agent(row));
+    }
+    items
 }
 
 struct EndpointAgentRow {
