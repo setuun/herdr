@@ -20,6 +20,10 @@ pub struct SoundConfig {
     /// Relative paths are resolved from the config file's directory.
     pub request_path: Option<PathBuf>,
     pub agents: AgentSoundOverrides,
+    /// Optional player command used instead of the built-in audio player search, e.g.
+    /// `player = ["herdr-sound-forward"]`. The mp3 file path is appended as last argument.
+    /// Useful when Herdr runs on a host without audio and the sound should play elsewhere.
+    pub player: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -159,6 +163,7 @@ impl Default for SoundConfig {
             done_path: None,
             request_path: None,
             agents: AgentSoundOverrides::default(),
+            player: Vec::new(),
         }
     }
 }
