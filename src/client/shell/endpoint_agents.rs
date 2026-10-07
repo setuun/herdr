@@ -88,7 +88,7 @@ pub(super) fn render_expanded(
                         .machine_heading_style(label)
                         .map_or(base, |patch| crate::ui::apply_sidebar_token_style(base, patch))
                 };
-                put_text(buffer, rect.x, rect.y, rect.width, &format!(" {label}"), style);
+                put_text(buffer, rect.x, rect.y, rect.width, &format!(" ▾ {label}"), style);
             }
             AgentPanelItem::Agent(row) => {
                 // Indent under machine headings, like workspaces in the machine list.
