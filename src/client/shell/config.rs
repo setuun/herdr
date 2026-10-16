@@ -124,6 +124,7 @@ impl ClientShellConfig {
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             sidebar_padding_right: config.ui.sidebar.padding_right,
+            sidebar_margin_right: config.ui.sidebar.margin_right,
             agent_panel_sort: config.ui.agent_panel_sort,
             status_indicators: config.ui.status_indicators,
             sound_enabled: config.ui.sound.enabled,
@@ -352,6 +353,7 @@ impl ClientShellConfig {
                 self.spaces = ui.sidebar.spaces.clone();
                 self.agents = ui.sidebar.agents.clone();
                 self.sidebar_padding_right = ui.sidebar.padding_right;
+                self.sidebar_margin_right = ui.sidebar.margin_right;
                 self.agent_panel_sort = ui.agent_panel_sort;
                 self.status_indicators = ui.status_indicators;
                 self.sound_enabled = ui.sound.enabled;
@@ -416,7 +418,15 @@ impl ClientShellConfig {
             sidebar_width.clamp(min, max)
         }
         .min(cols.saturating_sub(1));
-        let main = Rect::new(sidebar_width, 0, cols.saturating_sub(sidebar_width), rows);
+        // Blank columns after the sidebar border; the content always keeps one column.
+        let margin = if sidebar_width > 0 {
+            self.sidebar_margin_right
+                .min(cols.saturating_sub(sidebar_width).saturating_sub(1))
+        } else {
+            0
+        };
+        let main_x = sidebar_width + margin;
+        let main = Rect::new(main_x, 0, cols.saturating_sub(main_x), rows);
         let show_tab_bar = rows > 1 && !(self.hide_tab_bar_when_single_tab && tab_count == 1);
         let tab_height = u16::from(show_tab_bar);
         let (tab_bar, pane_surface) = match self.tab_bar_position {
@@ -476,6 +486,25 @@ mod tests {
     use crossterm::event::{KeyCode, KeyModifiers};
 
     use super::*;
+
+    #[test]
+    fn sidebar_margin_shifts_tab_bar_and_panes_right() {
+        let mut config = Config::default();
+        config.ui.sidebar.margin_right = 2;
+        let shell = ClientShellConfig::from_config(&config);
+        let layout = shell.layout(120, 40, false, 2, 30);
+        assert_eq!(layout.sidebar.width, 30);
+        assert_eq!(layout.pane_surface.x, 32);
+        assert_eq!(layout.pane_surface.width, 88);
+        assert_eq!(layout.tab_bar.x, 32);
+
+        // Hidden sidebar: no margin.
+        let mut config = Config::default();
+        config.ui.sidebar.margin_right = 2;
+        config.ui.sidebar_collapsed_mode = SidebarCollapsedModeConfig::Hidden;
+        let shell = ClientShellConfig::from_config(&config);
+        assert_eq!(shell.layout(120, 40, true, 2, 30).pane_surface.x, 0);
+    }
 
     #[test]
     fn live_reload_applies_client_owned_sections() {

@@ -535,6 +535,10 @@ pub struct SidebarConfig {
     /// up to the scrollbar or border).
     #[serde(skip_serializing_if = "is_zero")]
     pub padding_right: u16,
+    /// Blank columns between the sidebar border and the tab bar/panes (desktop layout, while a
+    /// sidebar is shown). Default: 0 (content starts right after the border).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub margin_right: u16,
 }
 
 fn is_zero(value: &u16) -> bool {
@@ -571,6 +575,7 @@ mod tests {
         );
         assert_eq!(config.spaces.row_gap, 0);
         assert_eq!(config.padding_right, 0);
+        assert_eq!(config.margin_right, 0);
     }
 
     #[test]
@@ -579,10 +584,12 @@ mod tests {
             r#"
 [ui.sidebar]
 padding_right = 1
+margin_right = 2
 "#,
         )
         .expect("sidebar right padding");
         assert_eq!(config.ui.sidebar.padding_right, 1);
+        assert_eq!(config.ui.sidebar.margin_right, 2);
     }
 
     #[test]
