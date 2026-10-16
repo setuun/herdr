@@ -298,8 +298,10 @@ pub(crate) fn render_sidebar(
         .max_offset_from_bottom
         .saturating_sub(metrics.offset_from_bottom);
     let show_scrollbar = metrics.max_offset_from_bottom > 0 && body.width > 1;
-    let content_width =
-        super::scroll::list_content_width(body.width, show_scrollbar, config.sidebar_padding_right);
+    let (content_width, row_padding) = super::scroll::list_row_width(
+        super::scroll::list_content_width(body.width, show_scrollbar, config.sidebar_padding_right),
+        config.sidebar_row_padding_right,
+    );
     let mut y = body.y;
     for (entry_position, entry) in entries.iter().enumerate().skip(*state.workspace_scroll) {
         let Some(workspace) = snapshot.workspaces.get(entry.index) else {
@@ -356,6 +358,12 @@ pub(crate) fn render_sidebar(
             .map_or(0, |next| u16::from(!next.indented) * config.spaces.row_gap);
         y = y.saturating_add(row_height + gap);
     }
+
+    super::scroll::extend_row_backgrounds(
+        buffer,
+        Rect::new(body.x, body.y, content_width, body.height),
+        row_padding,
+    );
 
     if show_scrollbar {
         let track = Rect::new(body.right().saturating_sub(1), body.y, 1, body.height);

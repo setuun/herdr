@@ -539,6 +539,10 @@ pub struct SidebarConfig {
     /// sidebar is shown). Default: 0 (content starts right after the border).
     #[serde(skip_serializing_if = "is_zero")]
     pub margin_right: u16,
+    /// Blank columns at the right end of each sidebar list row, inside the row background
+    /// (e.g. the selection highlight), so text does not touch the highlight's edge. Default: 0.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub row_padding_right: u16,
 }
 
 fn is_zero(value: &u16) -> bool {
@@ -576,6 +580,7 @@ mod tests {
         assert_eq!(config.spaces.row_gap, 0);
         assert_eq!(config.padding_right, 0);
         assert_eq!(config.margin_right, 0);
+        assert_eq!(config.row_padding_right, 0);
     }
 
     #[test]
@@ -585,11 +590,13 @@ mod tests {
 [ui.sidebar]
 padding_right = 1
 margin_right = 2
+row_padding_right = 3
 "#,
         )
         .expect("sidebar right padding");
         assert_eq!(config.ui.sidebar.padding_right, 1);
         assert_eq!(config.ui.sidebar.margin_right, 2);
+        assert_eq!(config.ui.sidebar.row_padding_right, 3);
     }
 
     #[test]

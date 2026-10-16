@@ -85,6 +85,32 @@ pub(super) fn list_content_width(width: u16, show_scrollbar: bool, padding: u16)
         .max(1)
 }
 
+/// Splits the list width into the row text width and the row padding behind it (the text
+/// always keeps at least one column).
+pub(super) fn list_row_width(width: u16, row_padding: u16) -> (u16, u16) {
+    let text = width.saturating_sub(row_padding).max(1).min(width);
+    (text, width - text)
+}
+
+/// Continues each line's background (taken from the last text column) over the `padding`
+/// columns to the right of `text`, so a row highlight spans the padding as well.
+pub(super) fn extend_row_backgrounds(buffer: &mut Buffer, text: Rect, padding: u16) {
+    if padding == 0 || text.width == 0 {
+        return;
+    }
+    let last = text.right() - 1;
+    for y in text.y..text.bottom() {
+        let Some(bg) = buffer.cell((last, y)).map(|cell| cell.bg) else {
+            continue;
+        };
+        for x in text.right()..text.right().saturating_add(padding) {
+            if let Some(cell) = buffer.cell_mut((x, y)) {
+                cell.set_symbol(" ").set_bg(bg);
+            }
+        }
+    }
+}
+
 pub(super) fn render_list_scrollbar(
     buffer: &mut Buffer,
     track: Rect,
@@ -111,6 +137,25 @@ pub(super) fn render_list_scrollbar(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn list_row_width_keeps_one_text_column() {
+        assert_eq!(list_row_width(30, 0), (30, 0));
+        assert_eq!(list_row_width(30, 2), (28, 2));
+        assert_eq!(list_row_width(2, 5), (1, 1));
+        assert_eq!(list_row_width(0, 1), (0, 0));
+    }
+
+    #[test]
+    fn extend_row_backgrounds_carries_the_row_highlight() {
+        use ratatui::style::Color;
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 6, 2));
+        buffer.set_string(0, 0, "abcdef", Style::default().bg(Color::Red));
+        extend_row_backgrounds(&mut buffer, Rect::new(0, 0, 4, 2), 2);
+        assert_eq!(buffer[(4, 0)].symbol(), " ");
+        assert_eq!(buffer[(5, 0)].bg, Color::Red);
+        assert_eq!(buffer[(5, 1)].bg, Color::Reset);
+    }
 
     #[test]
     fn list_content_width_reserves_scrollbar_and_padding() {
