@@ -530,10 +530,11 @@ impl Default for SpacesSidebarConfig {
 pub struct SidebarConfig {
     pub agents: AgentsSidebarConfig,
     pub spaces: SpacesSidebarConfig,
-    /// Blank columns between sidebar list text and the list scrollbar (when one is shown).
-    /// Default: 0 (text runs up to the scrollbar).
+    /// Blank columns at the right edge of the sidebar lists (spaces, agents, machines), before
+    /// the list scrollbar if one is shown, else before the sidebar border. Default: 0 (text runs
+    /// up to the scrollbar or border).
     #[serde(skip_serializing_if = "is_zero")]
-    pub scrollbar_gap: u16,
+    pub padding_right: u16,
 }
 
 fn is_zero(value: &u16) -> bool {
@@ -569,19 +570,19 @@ mod tests {
             ]
         );
         assert_eq!(config.spaces.row_gap, 0);
-        assert_eq!(config.scrollbar_gap, 0);
+        assert_eq!(config.padding_right, 0);
     }
 
     #[test]
-    fn parses_scrollbar_gap() {
+    fn parses_padding_right() {
         let config: crate::config::Config = toml::from_str(
             r#"
 [ui.sidebar]
-scrollbar_gap = 1
+padding_right = 1
 "#,
         )
-        .expect("sidebar scrollbar gap");
-        assert_eq!(config.ui.sidebar.scrollbar_gap, 1);
+        .expect("sidebar right padding");
+        assert_eq!(config.ui.sidebar.padding_right, 1);
     }
 
     #[test]

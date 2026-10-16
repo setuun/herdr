@@ -76,13 +76,13 @@ pub(super) fn list_scroll_start_to_reveal(
     start
 }
 
-/// Width left for list rows: the scrollbar takes the last column, `gap` blank columns sit
-/// before it. Rows always keep at least one column.
-pub(super) fn list_content_width(width: u16, show_scrollbar: bool, gap: u16) -> u16 {
-    if !show_scrollbar {
-        return width;
-    }
-    width.saturating_sub(1).saturating_sub(gap).max(1)
+/// Width left for list rows: the scrollbar (if shown) takes the last column, `padding` blank
+/// columns sit before it (or before the right edge). Rows always keep at least one column.
+pub(super) fn list_content_width(width: u16, show_scrollbar: bool, padding: u16) -> u16 {
+    width
+        .saturating_sub(u16::from(show_scrollbar))
+        .saturating_sub(padding)
+        .max(1)
 }
 
 pub(super) fn render_list_scrollbar(
@@ -113,8 +113,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn list_content_width_reserves_scrollbar_and_gap() {
-        assert_eq!(list_content_width(30, false, 2), 30);
+    fn list_content_width_reserves_scrollbar_and_padding() {
+        assert_eq!(list_content_width(30, false, 0), 30);
+        assert_eq!(list_content_width(30, false, 2), 28);
         assert_eq!(list_content_width(30, true, 0), 29);
         assert_eq!(list_content_width(30, true, 1), 28);
         assert_eq!(list_content_width(3, true, 5), 1);
