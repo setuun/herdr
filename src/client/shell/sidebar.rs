@@ -12,6 +12,55 @@ fn workspace_selection_background(palette: &Palette) -> ratatui::style::Color {
     }
 }
 
+/// Row background mixed from the machine color over the sidebar background; the selection
+/// (navigation cursor) is tinted stronger than the merely active row.
+fn machine_tint(
+    machine: ratatui::style::Color,
+    base: ratatui::style::Color,
+    selected: bool,
+) -> ratatui::style::Color {
+    use ratatui::style::Color;
+    let Color::Rgb(r, g, b) = machine else {
+        return machine;
+    };
+    let (br, bg, bb) = match base {
+        Color::Rgb(r, g, b) => (r, g, b),
+        _ => (24, 24, 37),
+    };
+    let alpha: u16 = if selected { 45 } else { 30 };
+    let mix = |fore: u8, back: u8| ((u16::from(fore) * alpha + u16::from(back) * (100 - alpha)) / 100) as u8;
+    Color::Rgb(mix(r, br), mix(g, bg), mix(b, bb))
+}
+
+/// `ui.sidebar.machine_highlight`: tints `area` with the machine color and puts an accent bar
+/// into its first column (blank in workspace and agent rows). No-op without a machine color.
+pub(in crate::client::shell) fn render_machine_highlight(
+    buffer: &mut Buffer,
+    area: Rect,
+    config: &ClientShellConfig,
+    machine: &str,
+    selected: bool,
+) {
+    if !config.sidebar_machine_highlight || area.is_empty() {
+        return;
+    }
+    let Some(color) = config
+        .spaces
+        .machine_heading_style(machine)
+        .and_then(|style| style.fg)
+        .map(|fg| fg.ratatui())
+    else {
+        return;
+    };
+    let tint = machine_tint(color, config.palette.sidebar_bg, selected);
+    for y in area.y..area.bottom() {
+        for x in area.x..area.right() {
+            buffer[(x, y)].set_bg(tint);
+        }
+        buffer[(area.x, y)].set_symbol("▌").set_fg(color);
+    }
+}
+
 pub(in crate::client::shell) fn workspace_active_background(
     palette: &Palette,
     navigating: bool,
@@ -810,5 +859,22 @@ pub(in crate::client::shell) fn render_workspace_rows(
                 buffer[(x, y)].set_bg(background);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod machine_highlight_tests {
+    use ratatui::style::Color;
+
+    #[test]
+    fn machine_tint_mixes_toward_the_machine_color() {
+        let base = Color::Rgb(0, 0, 0);
+        assert_eq!(super::machine_tint(Color::Rgb(100, 200, 0), base, false), Color::Rgb(30, 60, 0));
+        assert_eq!(super::machine_tint(Color::Rgb(100, 200, 0), base, true), Color::Rgb(45, 90, 0));
+        // Unknown base (e.g. Reset): dark fallback instead of the terminal default.
+        assert_eq!(
+            super::machine_tint(Color::Rgb(124, 124, 137), Color::Reset, false),
+            Color::Rgb(54, 54, 67)
+        );
     }
 }

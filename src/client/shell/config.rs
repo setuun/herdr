@@ -126,6 +126,7 @@ impl ClientShellConfig {
             sidebar_padding_right: config.ui.sidebar.padding_right,
             sidebar_margin_right: config.ui.sidebar.margin_right,
             sidebar_row_padding_right: config.ui.sidebar.row_padding_right,
+            sidebar_machine_highlight: config.ui.sidebar.machine_highlight,
             agent_panel_sort: config.ui.agent_panel_sort,
             status_indicators: config.ui.status_indicators,
             sound_enabled: config.ui.sound.enabled,
@@ -356,6 +357,7 @@ impl ClientShellConfig {
                 self.sidebar_padding_right = ui.sidebar.padding_right;
                 self.sidebar_margin_right = ui.sidebar.margin_right;
                 self.sidebar_row_padding_right = ui.sidebar.row_padding_right;
+                self.sidebar_machine_highlight = ui.sidebar.machine_highlight;
                 self.agent_panel_sort = ui.agent_panel_sort;
                 self.status_indicators = ui.status_indicators;
                 self.sound_enabled = ui.sound.enabled;

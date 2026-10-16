@@ -490,6 +490,15 @@ pub(super) fn render_expanded(
                     false,
                     palette,
                 );
+                if selected || (endpoint_active && workspace.focused) {
+                    super::sidebar::render_machine_highlight(
+                        buffer,
+                        nested,
+                        config,
+                        &endpoint.label,
+                        selected,
+                    );
+                }
                 if endpoint.status != ClientEndpointStatus::Online {
                     buffer.set_style(
                         rect,

@@ -543,6 +543,11 @@ pub struct SidebarConfig {
     /// (e.g. the selection highlight), so text does not touch the highlight's edge. Default: 0.
     #[serde(skip_serializing_if = "is_zero")]
     pub row_padding_right: u16,
+    /// Multi-machine sidebar: mark the active/selected workspace and the focused agent with
+    /// their machine color (from `spaces.machine_heading`): a tinted row background and an
+    /// accent bar at the row start.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub machine_highlight: bool,
 }
 
 fn is_zero(value: &u16) -> bool {
@@ -581,6 +586,7 @@ mod tests {
         assert_eq!(config.padding_right, 0);
         assert_eq!(config.margin_right, 0);
         assert_eq!(config.row_padding_right, 0);
+        assert!(!config.machine_highlight);
     }
 
     #[test]
@@ -591,12 +597,14 @@ mod tests {
 padding_right = 1
 margin_right = 2
 row_padding_right = 3
+machine_highlight = true
 "#,
         )
         .expect("sidebar right padding");
         assert_eq!(config.ui.sidebar.padding_right, 1);
         assert_eq!(config.ui.sidebar.margin_right, 2);
         assert_eq!(config.ui.sidebar.row_padding_right, 3);
+        assert!(config.ui.sidebar.machine_highlight);
     }
 
     #[test]

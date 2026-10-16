@@ -103,6 +103,15 @@ pub(super) fn render_expanded(
                     rect
                 };
                 super::agent_sidebar::render_agent_row(buffer, content, &row.agent, config);
+                if row.agent.focused {
+                    super::sidebar::render_machine_highlight(
+                        buffer,
+                        content,
+                        config,
+                        &row.machine_label,
+                        false,
+                    );
+                }
                 if row.stale {
                     buffer.set_style(
                         rect,
