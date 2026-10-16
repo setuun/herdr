@@ -209,7 +209,8 @@ pub(super) fn render_agent_list<T>(
         .max_offset_from_bottom
         .saturating_sub(metrics.offset_from_bottom);
     let show_scrollbar = metrics.max_offset_from_bottom > 0 && body.width > 1;
-    let content_width = body.width.saturating_sub(u16::from(show_scrollbar));
+    let content_width =
+        super::scroll::list_content_width(body.width, show_scrollbar, config.sidebar_scrollbar_gap);
     let mut y = body.y;
     for (index, row) in rows.iter().enumerate().skip(*agent_scroll) {
         let height = row_heights[index].min(body.height);

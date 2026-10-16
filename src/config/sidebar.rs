@@ -530,6 +530,14 @@ impl Default for SpacesSidebarConfig {
 pub struct SidebarConfig {
     pub agents: AgentsSidebarConfig,
     pub spaces: SpacesSidebarConfig,
+    /// Blank columns between sidebar list text and the list scrollbar (when one is shown).
+    /// Default: 0 (text runs up to the scrollbar).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub scrollbar_gap: u16,
+}
+
+fn is_zero(value: &u16) -> bool {
+    *value == 0
 }
 
 #[cfg(test)]
@@ -561,6 +569,19 @@ mod tests {
             ]
         );
         assert_eq!(config.spaces.row_gap, 0);
+        assert_eq!(config.scrollbar_gap, 0);
+    }
+
+    #[test]
+    fn parses_scrollbar_gap() {
+        let config: crate::config::Config = toml::from_str(
+            r#"
+[ui.sidebar]
+scrollbar_gap = 1
+"#,
+        )
+        .expect("sidebar scrollbar gap");
+        assert_eq!(config.ui.sidebar.scrollbar_gap, 1);
     }
 
     #[test]
