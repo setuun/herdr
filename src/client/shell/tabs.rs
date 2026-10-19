@@ -16,7 +16,8 @@ pub(crate) fn render_tab_bar(
     hits: &mut ShellHitMap,
 ) {
     let palette = &config.palette;
-    let machine_highlight = super::sidebar::machine_highlight_colors(config, machine, false);
+    // Stronger tint than an active sidebar row: unfocused tabs have their own grey background.
+    let machine_highlight = super::sidebar::machine_highlight_colors(config, machine, true);
     buffer.set_style(area, Style::default().bg(palette.panel_bg));
     let tabs = snapshot
         .tabs
