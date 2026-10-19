@@ -120,6 +120,7 @@ impl ClientShellConfig {
             sidebar_collapsed_mode: config.ui.sidebar_collapsed_mode,
             mobile_width_threshold: config.ui.mobile_width_threshold,
             tab_bar_position: config.ui.tab_bar_position,
+            tab_bar_gap: config.ui.tab_bar_gap,
             hide_tab_bar_when_single_tab: config.ui.hide_tab_bar_when_single_tab,
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
@@ -351,6 +352,7 @@ impl ClientShellConfig {
                 self.sidebar_collapsed_mode = ui.sidebar_collapsed_mode;
                 self.mobile_width_threshold = ui.mobile_width_threshold;
                 self.tab_bar_position = ui.tab_bar_position;
+                self.tab_bar_gap = ui.tab_bar_gap;
                 self.hide_tab_bar_when_single_tab = ui.hide_tab_bar_when_single_tab;
                 self.spaces = ui.sidebar.spaces.clone();
                 self.agents = ui.sidebar.agents.clone();
@@ -433,14 +435,20 @@ impl ClientShellConfig {
         let main = Rect::new(main_x, 0, cols.saturating_sub(main_x), rows);
         let show_tab_bar = rows > 1 && !(self.hide_tab_bar_when_single_tab && tab_count == 1);
         let tab_height = u16::from(show_tab_bar);
+        // Blank rows between tab row and panes; the panes always keep one row.
+        let gap = if show_tab_bar {
+            self.tab_bar_gap.min(rows.saturating_sub(tab_height).saturating_sub(1))
+        } else {
+            0
+        };
         let (tab_bar, pane_surface) = match self.tab_bar_position {
             TabBarPositionConfig::Top => (
                 Rect::new(main.x, 0, main.width, tab_height),
                 Rect::new(
                     main.x,
-                    tab_height,
+                    tab_height + gap,
                     main.width,
-                    rows.saturating_sub(tab_height),
+                    rows.saturating_sub(tab_height + gap),
                 ),
             ),
             TabBarPositionConfig::Bottom => (
@@ -450,7 +458,7 @@ impl ClientShellConfig {
                     main.width,
                     tab_height,
                 ),
-                Rect::new(main.x, 0, main.width, rows.saturating_sub(tab_height)),
+                Rect::new(main.x, 0, main.width, rows.saturating_sub(tab_height + gap)),
             ),
         };
 
@@ -490,6 +498,24 @@ mod tests {
     use crossterm::event::{KeyCode, KeyModifiers};
 
     use super::*;
+
+    #[test]
+    fn tab_bar_gap_leaves_blank_rows_above_the_panes() {
+        let mut config = Config::default();
+        config.ui.tab_bar_gap = 1;
+        let shell = ClientShellConfig::from_config(&config);
+        let layout = shell.layout(120, 40, false, 2, 30);
+        assert_eq!(layout.tab_bar.y, 0);
+        assert_eq!(layout.pane_surface.y, 2);
+        assert_eq!(layout.pane_surface.height, 38);
+
+        // Hidden tab row: no gap either.
+        config.ui.hide_tab_bar_when_single_tab = true;
+        let shell = ClientShellConfig::from_config(&config);
+        let layout = shell.layout(120, 40, false, 1, 30);
+        assert_eq!(layout.pane_surface.y, 0);
+        assert_eq!(layout.pane_surface.height, 40);
+    }
 
     #[test]
     fn sidebar_margin_shifts_tab_bar_and_panes_right() {
