@@ -12,9 +12,11 @@ pub(crate) fn render_tab_bar(
     tab_scroll: &mut usize,
     reveal_focused_tab: &mut bool,
     tab_drag_insert_index: Option<usize>,
+    machine: &str,
     hits: &mut ShellHitMap,
 ) {
     let palette = &config.palette;
+    let machine_highlight = super::sidebar::machine_highlight_colors(config, machine, false);
     buffer.set_style(area, Style::default().bg(palette.panel_bg));
     let tabs = snapshot
         .tabs
@@ -100,7 +102,12 @@ pub(crate) fn render_tab_bar(
             break;
         }
         let rect = Rect::new(x, area.y, width, 1);
-        let style = if tab.focused {
+        let style = if let Some((_, tint)) = machine_highlight.filter(|_| tab.focused) {
+            Style::default()
+                .fg(palette.text)
+                .bg(tint)
+                .add_modifier(Modifier::BOLD)
+        } else if tab.focused {
             let base = Style::default()
                 .fg(panel_contrast_fg(palette))
                 .bg(palette.accent);
@@ -123,6 +130,10 @@ pub(crate) fn render_tab_bar(
             right_padding = padding.saturating_sub(left) as usize,
         );
         put_text(buffer, rect.x, rect.y, rect.width, &text, style);
+        // Accent bar in the machine color, in the tab's left padding (if there is any).
+        if let Some((color, _)) = machine_highlight.filter(|_| tab.focused && left > 0) {
+            buffer[(rect.x, rect.y)].set_symbol("▌").set_fg(color);
+        }
         hits.tabs.push((rect, tab.tab_id.clone()));
         first_visible.get_or_insert(index);
         last_visible = Some(index);

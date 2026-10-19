@@ -32,6 +32,24 @@ fn machine_tint(
     Color::Rgb(mix(r, br), mix(g, bg), mix(b, bb))
 }
 
+/// Machine color and tinted row background for `ui.sidebar.machine_highlight`, or `None` when
+/// the option is off or the machine has no heading color.
+pub(in crate::client::shell) fn machine_highlight_colors(
+    config: &ClientShellConfig,
+    machine: &str,
+    selected: bool,
+) -> Option<(ratatui::style::Color, ratatui::style::Color)> {
+    if !config.sidebar_machine_highlight {
+        return None;
+    }
+    let color = config
+        .spaces
+        .machine_heading_style(machine)
+        .and_then(|style| style.fg)?
+        .ratatui();
+    Some((color, machine_tint(color, config.palette.sidebar_bg, selected)))
+}
+
 /// `ui.sidebar.machine_highlight`: tints `area` with the machine color and puts an accent bar
 /// into its first column (blank in workspace and agent rows). No-op without a machine color.
 pub(in crate::client::shell) fn render_machine_highlight(
@@ -41,18 +59,12 @@ pub(in crate::client::shell) fn render_machine_highlight(
     machine: &str,
     selected: bool,
 ) {
-    if !config.sidebar_machine_highlight || area.is_empty() {
+    if area.is_empty() {
         return;
     }
-    let Some(color) = config
-        .spaces
-        .machine_heading_style(machine)
-        .and_then(|style| style.fg)
-        .map(|fg| fg.ratatui())
-    else {
+    let Some((color, tint)) = machine_highlight_colors(config, machine, selected) else {
         return;
     };
-    let tint = machine_tint(color, config.palette.sidebar_bg, selected);
     for y in area.y..area.bottom() {
         for x in area.x..area.right() {
             buffer[(x, y)].set_bg(tint);
