@@ -117,6 +117,16 @@ pub(crate) fn render_tab_bar(
             } else {
                 base
             }
+        } else if machine_highlight.is_some() {
+            // Only the focused tab gets a box; the others are plain light text, readable on
+            // translucent backgrounds where the grey boxes disappear.
+            Style::default()
+                .fg(if tab.custom_label {
+                    palette.text
+                } else {
+                    palette.subtext0
+                })
+                .bg(ratatui::style::Color::Reset)
         } else if tab.custom_label {
             Style::default().fg(palette.overlay1).bg(palette.surface0)
         } else {
